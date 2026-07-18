@@ -1,0 +1,13 @@
+teams :
+  - ARG
+  - MEX
+  - POL 
+  - KSA
+
+matches :
+  - [ARG,MEX]
+  - [ARG,POL]
+  - [ARG,KSA]
+  - [MEX,POL]
+  - [MEX,KSA]
+  - [POL,KSA]
