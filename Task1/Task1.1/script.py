@@ -1,4 +1,3 @@
-from networkx import draw
 import yaml
 
 # matches processing 
@@ -95,8 +94,9 @@ def head_to_head(teams_names,teams_data) :
     draws_indices = {point: indices for point, indices in draws_indices.items() if len(indices) > 1}
 
     teams_in_draw = []
-    for draw_index in draws_indices :
-        for index in draw_index :
+
+    for indices in draws_indices.values():
+        for index in indices:
             teams_in_draw.append(teams_names[index])
     
     print (teams_in_draw)
@@ -126,9 +126,11 @@ def main() :
         teams_data[team] = initial_data
 
     results = update_data(teams_data , matches)
-    # print_standings(teams_data)
+    print_standings(teams_data)
+    
     print(results)
-    head_to_head(teams_data, results)
+    head_to_head(teams_names,teams_data)
+
 
 
 
