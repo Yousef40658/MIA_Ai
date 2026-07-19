@@ -41,23 +41,36 @@ def update_data(teams_data , matches):
     for match in matches :
         first_team  = match[0]
         second_team = match[1]
-        result = input(f"Enter the match's score(X-Y) for {first_team} vs {second_team} : ")
 
-        #allowing the user to just press enter indicating 0-0
-        if result.strip() == "" :
-            result = "0-0"
-     
-        try :
-            team1_goals , team2_goals = result.split("-")
-        
-        # recursion so the function runs again instead of breaking
-        except :
-            print("Enter the result correctly as [team1_goals-team2_goals] , goals separated by -")
-            update_data(teams_data, matches)
-        
-        ## 
-        team1_goals = int(team1_goals)
-        team2_goals = int(team2_goals)
+        # keep re-prompting for THIS match only until we get a valid score,
+        # instead of recursing over the whole matches list again
+        while True :
+            result = input(f"Enter the match's score(X-Y) for {first_team} vs {second_team} : ")
+
+            #allowing the user to just press enter indicating 0-0
+            if result.strip() == "" :
+                result = "0-0"
+
+            # split + int conversion both happen inside the try now, so a
+            # non-numeric score (e.g. "a-b") is caught instead of crashing
+            try :
+                team1_goals , team2_goals = result.split("-")
+                team1_goals = int(team1_goals)
+                team2_goals = int(team2_goals)
+
+            # recursion so the function runs again instead of breaking
+            except :
+                print("Enter the result correctly as [team1_goals-team2_goals] , goals separated by -")
+                continue
+
+            # reject negative goals (also catches malformed input like "-1-2"
+            # that would otherwise split into extra/garbage pieces)
+            if team1_goals < 0 or team2_goals < 0 :
+                print("Goals can't be negative, try again")
+                continue
+
+            # valid input, stop asking for this match
+            break
 
         # updates the list of winners to apply the Head-to-Head rule in case of a tie in points
         winner = process_match(teams_data,first_team, second_team , team1_goals , team2_goals) 
@@ -134,8 +147,6 @@ def sorting_teams(teams_names, teams_data, matches, match_results) :
             #highest goals
             draw.sort(key = lambda t : teams_data[t]["GF"], reverse=True)
             print("Tied group ranked by goals scored:", draw)
-
-
 
 
 def main() :
