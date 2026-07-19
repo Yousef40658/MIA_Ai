@@ -60,24 +60,22 @@ def update_data(teams_data , matches):
         team2_goals = int(team2_goals)
 
         # updates the list of winners to apply the Head-to-Head rule in case of a tie in points
-        result = process_match(teams_data,first_team, second_team , team1_goals , team2_goals) 
-        results.append(result)
+        winner = process_match(teams_data,first_team, second_team , team1_goals , team2_goals) 
+        results.append((first_team, second_team, team1_goals, team2_goals))
 
     return results
 
 ## final standings
 def print_standings(teams_data) :
-    for team in teams_data :
+    for team, stats in (teams_data.items() if isinstance(teams_data, dict) else teams_data):
         #formatting it in wanted format if not 0 , otherwise keep it a normal int 
-        teams_data[team]["GD"] = f"{teams_data[team]['GD']:+d}" if teams_data[team]["GD"] != 0 else "0"
-        print(f"{team} : {teams_data[team]}")
+        stats["GD"] = f"{stats['GD']:+d}" if stats["GD"] != 0 else "0"
+        print(f"{team} : {stats}")
 
-
-
-
-
+#----------------
 ##  tie breaking 
-def head_to_head(teams_names,teams_data) :
+#----------------
+def getting_teams_in_draws(teams_names,teams_data) :
     # storing list of points
     points = [teams_data[team]["Pts"] for team in teams_data]
     
@@ -96,17 +94,46 @@ def head_to_head(teams_names,teams_data) :
     teams_in_draw = []
 
     for indices in draws_indices.values():
+        current_draw = []
+
         for index in indices:
-            teams_in_draw.append(teams_names[index])
+            current_draw.append(teams_names[index])
+
+        teams_in_draw.append(current_draw)
+
+    return teams_in_draw
+
+def head2head(team1, team2, match_results):
+    for t1, t2, g1, g2 in match_results:
+        if {t1, t2} == {team1, team2}:
+            if g1 == g2:
+                return None
+            first_team_won = g1 > g2
+            return t1 if first_team_won == (t1 == team1) else t2
+    return None
+
+def sorting_teams(teams_names, teams_data, matches, match_results) :
+    sorted_teams = sorted(
+        teams_data.items(),
+        key = lambda team: team[1]["Pts"],
+        reverse= True
+    )
+
+    teams_in_draw = getting_teams_in_draws(teams_names, teams_data)
+    print_standings(sorted_teams)
     
-    print (teams_in_draw)
+    for draw in teams_in_draw :
+        if len(draw) == 2 :
+            winner = head2head(draw[0], draw[1], match_results)
+            if winner :
+                print(f"{winner} ranked higher on head-to-head")
+            else :
+                print(f"{draw[0]} and {draw[1]} still tied, fall back to goal difference")
 
-            
-
-
-
-    
-
+        else :
+            #highest goals
+            draw.sort(key = lambda t : teams_data[t]["GF"], reverse=True)
+            print("Tied group ranked by goals scored:", draw)
 
 
 
@@ -124,22 +151,10 @@ def main() :
     for team in teams_names :
         initial_data = {"P" : 0 , "W" : 0 , "D" : 0 , "L" : 0 , "GF" : 0 , "GA" : 0 , "GD" : 0 , "Pts" : 0}
         teams_data[team] = initial_data
-
-    results = update_data(teams_data , matches)
-    print_standings(teams_data)
     
-    print(results)
-    head_to_head(teams_names,teams_data)
+    match_results = update_data(teams_data , matches)
 
 
-
-
-    
-
-
+    sorting_teams(teams_names , teams_data , matches, match_results)
 
 main()
-        
-     
-
-
