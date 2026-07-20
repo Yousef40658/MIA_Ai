@@ -1,5 +1,6 @@
 from enum import Enum
-
+import random 
+from random import Random
 class Position(Enum):
     FORWARD = "FORWARD"
     MIDFIELDER = "MIDFIELDER"
@@ -15,6 +16,7 @@ class Event(Enum) :
 class Phase(Enum):
     REGULATION = "REGULATION"
     FINISHED = "FINISHED"
+    PENALTIES = "PENALTIES"
 
 class Player():
     def __init__(self , name : str , position : Position , base_attack : int , base_def : int , stamina : float):
@@ -157,10 +159,10 @@ class MatchEvent():
     def to_string(self) -> str:
             return f"[{self._minute}'] {self._event_type.value}: {self._team}{self.player} - {self._outcome_text}"
     
-    #------------------------------------------------------------------------------------------------------------------
-    class Match():
+#------------------------------------------------------------------------------------------------------------------
+class Match():
         def __init__(self , home_team : Team,away_team : Team , home_score : int , away_score: int , 
-                     current_minute : int , time_line : list[MatchEvent], phase : Phase):
+                    time_line : list[MatchEvent], phase : Phase , current_minute : int = 0):
             self.home_team = home_team
             self.away_team = away_team
             self.home_score = home_score
@@ -172,6 +174,15 @@ class MatchEvent():
         
         def run_minute_tick(self):
             self.current_minute += 1    
+            if self.current_minute <= 90 :
+                self.phase = Phase.REGULATION
+                self.winner = None
+            else :
+                self.phase = Phase.FINISHED
+                self.winner = self.home_team if self.home_score > self.away_score else self.away_team if self.away_score > self.home_score else None
+                print (f"Match finished. Final score: {self.home_team.country_name} {self.home_score} - {self.away_score} {self.away_team.country_name}. Winner: {self.winner.country_name if self.winner else 'Draw'}")
+                return  #
+        
             #reduces stamina by base_decay every minute , i've already constrained it inside the player method 
             for player in self.home_team.active_lineup:
                 player.deplete_stamina(self.base_decay)
@@ -179,7 +190,29 @@ class MatchEvent():
             for player in self.away_team.active_lineup:
                 player.deplete_stamina(self.base_decay)
 
-            self.process_goal_attempts
+            # home team chance to attempt a goal, i don't get the 
+            if random.random() < 0.1 :
+                self.process_goal_attempts(self.home_team , self.away_team)
+            # away team chance to attempt a goal
+            if random.random() < 0.1 :
+                self.process_goal_attempts(self.away_team , self.home_team)
 
-        def process_goal_attempts(self) :
-            pass
+
+        def process_goal_attempts(self , attacking_team : Team , defending_team : Team) :
+            # calculate attack and defense states for both teams
+            attacking_team.update_stats()
+            defending_team.update_stats()
+
+            if (attacking_team.effective_attack * random.uniform(0.75 , 1.25)) > (defending_team.effective_defense * random.uniform(0.8 , 1.20)) :
+                # goal scored
+                self.home_score += 1 if attacking_team == self.home_team else 0
+                self.away_score += 1 if attacking_team == self.away_team else 0
+
+                # create a goal event and add it to the timeline
+                goal_event = MatchEvent(event_id=f"goal_{self.current_minute}", 
+                                        event_type=Event.GOAL, 
+                                        minute=self.current_minute, 
+                                        team=attacking_team, 
+                                        player="name",  #i don't football players names o.o
+                                        outcome_text="Goal scored!")
+                self.time_line.append(goal_event)
