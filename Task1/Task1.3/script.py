@@ -19,12 +19,16 @@ class Phase(Enum):
     PENALTIES = "PENALTIES"
 
 class Player():
-    def __init__(self , name : str , position : Position , base_attack : int , base_def : int , stamina : float):
+    def __init__(self , name : str , position : Position , base_attack : int , base_def : int , stamina : float , subbed : bool = False):
         self.name = name
         self.position = position
         self.base_attack = base_attack
         self.base_def = base_def 
         self.stamina = stamina
+        self.subbed = subbed
+        self.yellow_card = False
+        self.red_card = False
+
     
     def deplete_stamina(self , rate):
         self.stamina -= rate
@@ -40,12 +44,14 @@ class Player():
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
 class Team():
     def __init__(self , country_name : str , roster : list[Player] ,active_lineup : list[Player]
-                 ,bench : list[Player] , substitution_remaining : int) :
+                 ,bench : list[Player] , substitution_remaining : int , automatic_sub : bool = False) :
         self.country_name = country_name
         self.roster = roster
         self.active_lineup = active_lineup  
         self.bench = bench
         self.substitution_remaining = substitution_remaining
+        self.automatic_sub = automatic_sub
+        self.red_card_players = []
 
         #since those values are constant until a substitution is made  or stamina decreases, its safe to use them here
         #now we're initializing the attack and defense stats hmm lets build a cleaner update_stats
@@ -74,7 +80,8 @@ class Team():
         for player in attacking_players:
             attack += player.get_effective_attack()
 
-        self.effective_attack = self.team_attack / len(attacking_players)
+        # so that's the attribute that actually exists by the time we get here (was self.team_attack)
+        self.effective_attack = (self.team_total_attack / len(attacking_players))if attacking_players else 0
         return self.effective_attack
     
 
@@ -93,7 +100,7 @@ class Team():
         for player in defending_players:
             defense += player.get_effective_defense()
 
-        self.effective_defense = self.team_defense / len(defending_players)
+        self.effective_defense = (self.team_total_defense / len(defending_players)) if defending_players else 0
         return self.effective_defense
         
 
@@ -101,7 +108,7 @@ class Team():
     def execute_substitution(self , player_out : Player , player_in : Player):
         if self.substitution_remaining > 0:
             #validates that the substitution is valid
-            if player_out in self.active_lineup and player_in in self.bench:
+            if player_out in self.active_lineup and player_out.subbed == False and player_in in self.bench:
                 self.active_lineup.remove(player_out)
                 self.bench.append(player_out)
 
@@ -110,6 +117,7 @@ class Team():
 
                 self.substitution_remaining -= 1
 
+                player_out.subbed = True
     
                 self.update_stats()
                 return True
@@ -119,6 +127,24 @@ class Team():
         else :
             print("No substitutions remaining")
             return False
+        
+#---------------------------
+    def Automatic_substitution(self):
+        if len(self.bench) > 0 and self.substitution_remaining > 0 :
+            #finds lowest stamina player then replaces with bench , i've set it to always be bench[0
+            lowest_stamina_player = min(self.active_lineup , key = lambda player:player.stamina)
+            #since it should be of same type [hopefully yy3ny]
+            #to disable choosing a player that just got substituted , i'll also add a subbed flag to avoid subbing a player twice 
+            suitable_players = [player for player in self.bench if player.position == lowest_stamina_player.position and player.stamina > lowest_stamina_player.stamina and player.subbed == False]
+
+            # skip substitution if no suitable players are available
+            if not suitable_players:
+                return
+
+            player_in = random.choice(suitable_players) #ofc we can also make it by highest defense if position is def , attack otherwise
+
+            self.execute_substitution(lowest_stamina_player , player_in)
+
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 class MatchEvent():
@@ -161,34 +187,55 @@ class MatchEvent():
     
 #------------------------------------------------------------------------------------------------------------------
 class Match():
-        def __init__(self , home_team : Team,away_team : Team , home_score : int , away_score: int , 
-                    time_line : list[MatchEvent], phase : Phase , current_minute : int = 0):
+        def __init__(self , home_team : Team,away_team : Team , home_score : int = 0 , away_score: int = 0 , 
+                    time_line : list[MatchEvent] = None, phase : Phase = Phase.REGULATION , current_minute : int = 0):
             self.home_team = home_team
             self.away_team = away_team
             self.home_score = home_score
             self.away_score = away_score
             self.current_minute = current_minute
-            self.time_line = time_line
+            self.time_line = time_line if time_line is not None else []
             self.phase = phase
             self.base_decay = 0.5 # stamina decay rate per minute
+            self.winner = None
         
         def run_minute_tick(self):
+            #while in the 90 minutes keep running normally
             self.current_minute += 1    
             if self.current_minute <= 90 :
                 self.phase = Phase.REGULATION
                 self.winner = None
+                if self.home_team.automatic_sub:
+                    self.home_team.Automatic_substitution()
+                if self.away_team.automatic_sub:
+                    self.away_team.Automatic_substitution()
+
+            # if time exceeds 90 minutes and the score is tied, transition to penalties
+            elif self.phase != Phase.FINISHED and self.home_score == self.away_score:
+                    self.phase = Phase.PENALTIES
+                    self.penalty_shootout(self.home_team, self.away_team)
+                    # transition to finished phase after penalties
+                    self.phase = Phase.FINISHED
+                    return
+            
+            # if time exceeds 90 minutes and the score is not tied, transition to finished phase
+            elif self.phase != Phase.FINISHED:
+                    self.winner = self.home_team if self.home_score > self.away_score else self.away_team
+                    self.phase = Phase.FINISHED
+                    print(f"Match finished: {self.home_team.country_name} {self.home_score} - {self.away_score} {self.away_team.country_name}. Winner: {self.winner.country_name if self.winner else 'Draw'}")
+                    return
+
             else :
-                self.phase = Phase.FINISHED
-                self.winner = self.home_team if self.home_score > self.away_score else self.away_team if self.away_score > self.home_score else None
-                print (f"Match finished. Final score: {self.home_team.country_name} {self.home_score} - {self.away_score} {self.away_team.country_name}. Winner: {self.winner.country_name if self.winner else 'Draw'}")
-                return  #
+                return  #If the match is already finished, time ticking does nothing 
         
             #reduces stamina by base_decay every minute , i've already constrained it inside the player method 
-            for player in self.home_team.active_lineup:
-                player.deplete_stamina(self.base_decay)
-            
-            for player in self.away_team.active_lineup:
-                player.deplete_stamina(self.base_decay)
+            for team in [self.home_team, self.away_team]:
+                for player in team.active_lineup[:]:   # iterate over a copy
+                    player.deplete_stamina(self.base_decay)
+
+                    if player.red_card:
+                        team.active_lineup.remove(player)
+                        team.red_card_players.append(player)
 
             # home team chance to attempt a goal, i don't get the 
             if random.random() < 0.1 :
@@ -216,3 +263,32 @@ class Match():
                                         player="name",  #i don't football players names o.o
                                         outcome_text="Goal scored!")
                 self.time_line.append(goal_event)
+
+
+        def penalty_shootout(self, team1 , team2):
+            # Simulate a penalty shootout
+            team1_score = 0
+            team2_score = 0
+            for i in range(5):
+                if random.random() < 0.75:  # 75% chance to score
+                    team1_score += 1
+                if random.random() < 0.75:
+                    team2_score += 1
+
+            #determine the winner from the first 5 shoots
+            if team1_score > team2_score:
+                self.winner = team1
+            elif team2_score > team1_score:
+                self.winner = team2
+
+            # if the first five shoots results in a draw , keep shooting until one team wins
+            else:
+                while team1_score == team2_score:
+                    if random.random() < 0.75:
+                        team1_score += 1
+                    if random.random() < 0.75:
+                        team2_score += 1
+                    if team1_score > team2_score:
+                        self.winner = team1
+                    elif team2_score > team1_score:
+                        self.winner = team2
