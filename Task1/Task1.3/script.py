@@ -1,6 +1,8 @@
 from enum import Enum
 import random 
 from random import Random
+from numpy import np
+
 class Position(Enum):
     FORWARD = "FORWARD"
     MIDFIELDER = "MIDFIELDER"
@@ -292,3 +294,42 @@ class Match():
                         self.winner = team1
                     elif team2_score > team1_score:
                         self.winner = team2
+
+# --------------------
+#Bonus
+#---------------------
+class Actions(Enum) :
+    SUBSTITUTE = "SUBSTITUTE"
+    CHANGE_FORMATION = "CHANGE_FORMATION"
+    HOLD = "HOLD"
+    ATTACK = "ATTACK"
+
+
+
+class MatchAi():
+    def __init__(self , model, controlled_team : Team , decision_log : list , risk_tolerance : float = 0.5):
+        self.model = model
+        self.controlled_team = controlled_team
+        self.decision_log = decision_log
+        self.risk_tolerance = risk_tolerance
+    
+    def observe_state(self ,match : Match) :
+        home = True if self.controlled_team == match.home_team else False
+        stamina_levels = {}
+        for player in self.controlled_team.active_lineup:
+            stamina_levels[player.name] = player.stamina
+            
+        vector_dict = {
+            "minute" : match.current_minute,
+            "phase"  : match.phase.value,
+            "team_score" : match.home_score if home else match.away_score,
+            "against_score" : match.away_score if home else match.home_score,
+            "stamina_levels" :  stamina_levels,
+        }
+
+        vector = np.array(vector , dtype = np.float64)
+        return vector
+    
+    def decide_action(self):
+        pass
+
