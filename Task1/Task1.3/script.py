@@ -213,7 +213,10 @@ class MatchEvent():
                 if self._player.yellow_card :
                     self._player.red_card = True 
                     
-                    self._team.active_lineup.remove(self._player)
+                    if self._player in self._team.active_lineup :
+                        self._team.active_lineup.remove(self._player)
+                    if self._player not in self._team.red_card_players :
+                        self._team.red_card_players.append(self._player)
                     #hmmm don't know if i should add him to bench and add if condition for subbing that player has no red card
                 else :
                     self._player.yellow_card = True
@@ -291,15 +294,17 @@ class Match():
                     player.deplete_stamina(self.base_decay)
 
                     if player.red_card:
-                        team.active_lineup.remove(player)
-                        team.red_card_players.append(player)
+                        if player in team.active_lineup :
+                            team.active_lineup.remove(player)
+                        if player not in team.red_card_players :
+                            team.red_card_players.append(player)
 
             # home team chance to attempt a goal, i don't get the 
             if random.random() < 0.1 :
-                self.process_goal_attempts(self.home_team , self.away_team)
+                self.process_goal_attempts(self.home_team , self.away_team , random.choice(self.home_team.active_lineup))
             # away team chance to attempt a goal
             if random.random() < 0.1 :
-                self.process_goal_attempts(self.away_team , self.home_team)
+                self.process_goal_attempts(self.away_team , self.home_team , random.choice(self.away_team.active_lineup))
 
 
         def process_goal_attempts(self , attacking_team : Team , defending_team : Team , scoring_player : Player) :
@@ -320,7 +325,7 @@ class Match():
                                         event_type=Event.GOAL, 
                                         minute=self.current_minute, 
                                         team=attacking_team, 
-                                        player= scoring_player.name,  #i don't football players names o.o
+                                        player= scoring_player,  #i don't football players names o.o
                                         outcome_text="Goal scored!")
                 self.time_line.append(goal_event)
 
@@ -412,7 +417,7 @@ class MatchAi():
             team.execute_substitution(player_out, player_in)
 
         elif action == Actions.CHANGE_FORMATION:
-            formations = list(FORMATION_BUCKETS.keys())
+            formations = FORMATION_BUCKETS
             current = getattr(team, "formation", "4-4-2")
             team.formation = formations[(formations.index(current) + 1) % len(formations)]
             team.update_stats()
@@ -435,4 +440,3 @@ class MatchAi():
     def _call_model(self , prompt : str) -> str:
         response = self.model.generate_content(prompt)
         return response.text
-    
