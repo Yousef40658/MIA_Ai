@@ -1,7 +1,7 @@
 from enum import Enum
 import random 
 from random import Random
-from numpy import np
+import numpy as np
 
 class Position(Enum):
     FORWARD = "FORWARD"
@@ -307,11 +307,13 @@ class Actions(Enum) :
 
 
 class MatchAi():
-    def __init__(self , model, controlled_team : Team , decision_log : list , risk_tolerance : float = 0.5):
-        self.model = model
+    def __init__(self , model, controlled_team : Team , decision_log : list ,match : Match ,risk_tolerance : float = 0.5 ):
+        self.model = model      #didn't know what to use for a model , currently don't have llama on the laptop 
         self.controlled_team = controlled_team
         self.decision_log = decision_log
         self.risk_tolerance = risk_tolerance
+        self.state = None
+        self.match = match
     
     def observe_state(self ,match : Match) :
         home = True if self.controlled_team == match.home_team else False
@@ -327,9 +329,15 @@ class MatchAi():
             "stamina_levels" :  stamina_levels,
         }
 
-        vector = np.array(vector , dtype = np.float64)
-        return vector
+        self.state = np.array(vector , dtype = np.float64)
+        return self.state
     
-    def decide_action(self):
-        pass
+    def decide_action(self , match):
+        #option to feed the match as an argument to use the method , otherwise fallback to the object's match
+        if match is None :
+            match = self.match
+
+        #call observe_state first to udpate the self.state vector
+        self.observe_state(match)
+
 
