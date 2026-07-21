@@ -48,7 +48,7 @@ class Player():
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
 class Team():
     def __init__(self , country_name : str , roster : list[Player] ,active_lineup : list[Player]
-                 ,bench : list[Player] , substitution_remaining : int , automatic_sub : bool = False) :
+                 ,bench : list[Player] , substitution_remaining : int , automatic_sub : bool = False , formation = None) :
         self.country_name = country_name
         self.roster = roster
         self.active_lineup = active_lineup  
@@ -56,6 +56,9 @@ class Team():
         self.substitution_remaining = substitution_remaining
         self.automatic_sub = automatic_sub
         self.red_card_players = []
+        self.formation = formation
+        if self.formation is None :
+                self.formation = "3-4-3"
 
         #since those values are constant until a substitution is made  or stamina decreases, its safe to use them here
         #now we're initializing the attack and defense stats hmm lets build a cleaner update_stats
@@ -204,7 +207,7 @@ class MatchEvent():
 #------------------------------------------------------------------------------------------------------------------
 class Match():
         def __init__(self , home_team : Team,away_team : Team , home_score : int = 0 , away_score: int = 0 , 
-                    formation = None , time_line : list[MatchEvent] = None, phase : Phase = Phase.REGULATION , current_minute : int = 0 ):
+                     time_line : list[MatchEvent] = None, phase : Phase = Phase.REGULATION , current_minute : int = 0 ):
             self.home_team = home_team
             self.away_team = away_team
             self.home_score = home_score
@@ -214,9 +217,7 @@ class Match():
             self.phase = phase
             self.base_decay = 0.5 # stamina decay rate per minute
             self.winner = None
-            self.formation = formation
-            if self.formation is None :
-                self.formation = "3-4-3"
+
         
         def run_minute_tick(self):
             #while in the 90 minutes keep running normally
