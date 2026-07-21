@@ -22,6 +22,32 @@ class Phase(Enum):
     FINISHED = "FINISHED"
     PENALTIES = "PENALTIES"
 
+
+# --------------------
+#Bonus
+#---------------------
+class Actions(Enum) :
+    SUBSTITUTE = "SUBSTITUTE"
+    CHANGE_FORMATION = "CHANGE_FORMATION"
+    HOLD = "HOLD"
+    ATTACK = "ATTACK"
+
+ACTION_KEYWORDS = {
+    "SUBSTITUTE": Actions.SUBSTITUTE,
+    "CHANGE_FORMATION": Actions.CHANGE_FORMATION,
+    "HOLD": Actions.HOLD,
+    "ATTACK": Actions.ATTACK,
+    "PUSH_ATTACK": Actions.ATTACK,
+}
+
+FORMATION_BUCKETS = [
+    "5-3-2",
+    "4-4-2" ,
+    "3-4-3",
+]
+
+###
+
 class Player():
     def __init__(self , name : str , position : Position , base_attack : int , base_def : int , stamina : float , subbed : bool = False):
         self.name = name
@@ -56,10 +82,7 @@ class Team():
         self.substitution_remaining = substitution_remaining
         self.automatic_sub = automatic_sub
         self.red_card_players = []
-        self.formation = formation
-        if self.formation is None :
-                self.formation = "3-4-3"
-
+        self.formation = formation if formation else "4-4-2"
         #since those values are constant until a substitution is made  or stamina decreases, its safe to use them here
         #now we're initializing the attack and defense stats hmm lets build a cleaner update_stats
         self.update_stats()
@@ -89,6 +112,12 @@ class Team():
 
         # so that's the attribute that actually exists by the time we get here (was self.team_attack)
         self.effective_attack = (attack / len(attacking_players)) if attacking_players else 0
+
+        if self.formation == "3-4-3" :
+            self.effective_attack += 40
+        elif self.formation == "4-4-2" :
+            self.effective_attack += 20 
+        
         return self.effective_attack
     
 
@@ -108,6 +137,10 @@ class Team():
             defense += player.get_effective_defense()
 
         self.effective_defense = (defense / len(defending_players)) if defending_players else 0
+
+        if self.formation == "5-3-2":
+            self.effective_defense += 40 
+
         return self.effective_defense
         
 
@@ -164,15 +197,16 @@ class MatchEvent():
         self._player = player
         self._outcome_text = outcome_text
 
-        self.process_foul(self)
+        if self.event_type is Event.FOUl :
+            self.process_foul(self._player)
 
     #getters only , no setters 
-    def process_foul(self , player_fouled : Player) :
+    def process_foul(self , player_fouled : Player) :        
         injure_probability = random.random()
         if injure_probability< 0.3 : 
             player_fouled.injured = True
             # reduce stamina of fouled player
-            player_fouled.stamina - ((random.uniform(0.4 * 0.6)) * 30)
+            player_fouled.stamina -= ((random.uniform(0.4 , 0.6)) * 30)
 
         if self.event_type is Event.FOUl :
             if player_fouled.injured :
@@ -247,7 +281,10 @@ class Match():
 
             else :
                 return  #If the match is already finished, time ticking does nothing 
-        
+
+            #
+
+
             #reduces stamina by base_decay every minute , i've already constrained it inside the player method 
             for team in [self.home_team, self.away_team]:
                 for player in team.active_lineup[:]:   # iterate over a copy
@@ -265,7 +302,7 @@ class Match():
                 self.process_goal_attempts(self.away_team , self.home_team)
 
 
-        def process_goal_attempts(self , attacking_team : Team , defending_team : Team) :
+        def process_goal_attempts(self , attacking_team : Team , defending_team : Team , scoring_player : Player) :
             # calculate attack and defense states for both teams
             attacking_team.update_stats()
             defending_team.update_stats()
@@ -283,7 +320,7 @@ class Match():
                                         event_type=Event.GOAL, 
                                         minute=self.current_minute, 
                                         team=attacking_team, 
-                                        player="name",  #i don't football players names o.o
+                                        player= scoring_player.name,  #i don't football players names o.o
                                         outcome_text="Goal scored!")
                 self.time_line.append(goal_event)
 
@@ -316,28 +353,7 @@ class Match():
                     elif team2_score > team1_score:
                         self.winner = team2
 
-# --------------------
-#Bonus
-#---------------------
-class Actions(Enum) :
-    SUBSTITUTE = "SUBSTITUTE"
-    CHANGE_FORMATION = "CHANGE_FORMATION"
-    HOLD = "HOLD"
-    ATTACK = "ATTACK"
 
-ACTION_KEYWORDS = {
-    "SUBSTITUTE": Actions.SUBSTITUTE,
-    "CHANGE_FORMATION": Actions.CHANGE_FORMATION,
-    "HOLD": Actions.HOLD,
-    "ATTACK": Actions.ATTACK,
-    "PUSH_ATTACK": Actions.ATTACK,
-}
-
-FORMATION_BUCKETS = {
-    "5-3-2": {"defense": 6, "attack": 5},
-    "4-4-2": {"defense": 5, "attack": 6},
-    "3-4-3": {"defense": 4, "attack": 7},
-}
 
 class MatchAi():
     def __init__(self , model, controlled_team : Team , decision_log : list ,match : Match ,risk_tolerance : float = 0.5 ):
