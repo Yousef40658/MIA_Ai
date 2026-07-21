@@ -2,6 +2,7 @@ from enum import Enum
 import random 
 from random import Random
 import numpy as np
+import json
 
 class Position(Enum):
     FORWARD = "FORWARD"
@@ -14,6 +15,7 @@ class Event(Enum) :
     SUBSTITUTION = "SUBSTITUTION"
     HALF_TIME = "HALF_TIME"
     FULL_TIME = "FULL_TIME"
+    FOUl      = "FOUL"
 
 class Phase(Enum):
     REGULATION = "REGULATION"
@@ -30,12 +32,12 @@ class Player():
         self.subbed = subbed
         self.yellow_card = False
         self.red_card = False
+        self.injured = False
 
     
     def deplete_stamina(self , rate):
-        self.stamina -= rate
         #limits it to 10
-        self.stamina = max(self.stamina , 10) 
+        self.stamina = max(self.stamina - rate , 10) 
 
     def get_effective_attack(self):
         return (self.base_attack * (self.stamina / 100.0))
@@ -83,7 +85,7 @@ class Team():
             attack += player.get_effective_attack()
 
         # so that's the attribute that actually exists by the time we get here (was self.team_attack)
-        self.effective_attack = (self.team_total_attack / len(attacking_players))if attacking_players else 0
+        self.effective_attack = (attack / len(attacking_players)) if attacking_players else 0
         return self.effective_attack
     
 
@@ -102,7 +104,7 @@ class Team():
         for player in defending_players:
             defense += player.get_effective_defense()
 
-        self.effective_defense = (self.team_total_defense / len(defending_players)) if defending_players else 0
+        self.effective_defense = (defense / len(defending_players)) if defending_players else 0
         return self.effective_defense
         
 
@@ -159,7 +161,27 @@ class MatchEvent():
         self._player = player
         self._outcome_text = outcome_text
 
+        self.process_foul(self)
+
     #getters only , no setters 
+    def process_foul(self , player_fouled : Player) :
+        injure_probability = random.random()
+        if injure_probability< 0.3 : 
+            player_fouled.injured = True
+            # reduce stamina of fouled player
+            player_fouled.stamina - ((random.uniform(0.4 * 0.6)) * 30)
+
+        if self.event_type is Event.FOUl :
+            if player_fouled.injured :
+                if self._player.yellow_card :
+                    self._player.red_card = True 
+                    
+                    self._team.active_lineup.remove(self._player)
+                    #hmmm don't know if i should add him to bench and add if condition for subbing that player has no red card
+                else :
+                    self._player.yellow_card = True
+
+
     @property
     def event_id(self) -> str:
         return self._event_id
@@ -173,24 +195,16 @@ class MatchEvent():
         return self._minute
 
     @property
-    def team(self) -> "Team":
-        return self._team
-
-    @property
-    def player(self) -> "Player":
-        return self._player
-
-    @property
     def outcome_text(self) -> str:
         return self._outcome_text
         
     def to_string(self) -> str:
-            return f"[{self._minute}'] {self._event_type.value}: {self._team}{self.player} - {self._outcome_text}"
+            return f"[{self._minute}'] {self._event_type.value}: {self._team.country_name}{self._player.name} - {self._outcome_text}"
     
 #------------------------------------------------------------------------------------------------------------------
 class Match():
         def __init__(self , home_team : Team,away_team : Team , home_score : int = 0 , away_score: int = 0 , 
-                    time_line : list[MatchEvent] = None, phase : Phase = Phase.REGULATION , current_minute : int = 0):
+                    formation = None , time_line : list[MatchEvent] = None, phase : Phase = Phase.REGULATION , current_minute : int = 0 ):
             self.home_team = home_team
             self.away_team = away_team
             self.home_score = home_score
@@ -200,6 +214,9 @@ class Match():
             self.phase = phase
             self.base_decay = 0.5 # stamina decay rate per minute
             self.winner = None
+            self.formation = formation
+            if self.formation is None :
+                self.formation = "3-4-3"
         
         def run_minute_tick(self):
             #while in the 90 minutes keep running normally
@@ -252,7 +269,10 @@ class Match():
             attacking_team.update_stats()
             defending_team.update_stats()
 
-            if (attacking_team.effective_attack * random.uniform(0.75 , 1.25)) > (defending_team.effective_defense * random.uniform(0.8 , 1.20)) :
+            attack_factor = random.uniform(0.4 , 0.8)
+            defense_factor = random.uniform(0.6,1.0) #guess scoring should be harder ._. but i don't watch football
+
+            if ( attack_factor * attacking_team.effective_attack * random.uniform(0.75 , 1.25)) > ( defense_factor * defending_team.effective_defense * random.uniform(0.8 , 1.20)) :
                 # goal scored
                 self.home_score += 1 if attacking_team == self.home_team else 0
                 self.away_score += 1 if attacking_team == self.away_team else 0
@@ -304,7 +324,19 @@ class Actions(Enum) :
     HOLD = "HOLD"
     ATTACK = "ATTACK"
 
+ACTION_KEYWORDS = {
+    "SUBSTITUTE": Actions.SUBSTITUTE,
+    "CHANGE_FORMATION": Actions.CHANGE_FORMATION,
+    "HOLD": Actions.HOLD,
+    "ATTACK": Actions.ATTACK,
+    "PUSH_ATTACK": Actions.ATTACK,
+}
 
+FORMATION_BUCKETS = {
+    "5-3-2": {"defense": 6, "attack": 5},
+    "4-4-2": {"defense": 5, "attack": 6},
+    "3-4-3": {"defense": 4, "attack": 7},
+}
 
 class MatchAi():
     def __init__(self , model, controlled_team : Team , decision_log : list ,match : Match ,risk_tolerance : float = 0.5 ):
@@ -321,15 +353,16 @@ class MatchAi():
         for player in self.controlled_team.active_lineup:
             stamina_levels[player.name] = player.stamina
             
-        vector_dict = {
+        self.state = {
             "minute" : match.current_minute,
             "phase"  : match.phase.value,
             "team_score" : match.home_score if home else match.away_score,
             "against_score" : match.away_score if home else match.home_score,
             "stamina_levels" :  stamina_levels,
+            "subs_remaining" : self.controlled_team.substitution_remaining,
+            'risk_tolerance' : self.risk_tolerance
         }
 
-        self.state = np.array(vector , dtype = np.float64)
         return self.state
     
     def decide_action(self , match):
@@ -340,4 +373,49 @@ class MatchAi():
         #call observe_state first to udpate the self.state vector
         self.observe_state(match)
 
+        raw = self._call_model(self._build_prompt())
+        action = ACTION_KEYWORDS.get(raw.strip().upper(), Actions.HOLD)
+        self.decision_log.append({"minute": match.current_minute, "action": action.value, "reason": raw.strip()})
+        return action
 
+
+    def apply_decision(self, action: Actions, match=None):
+        if match is None:
+            match = self.match
+        team = self.controlled_team
+
+        if action == Actions.SUBSTITUTE:
+            if not team.bench:
+                return
+            player_out = min(team.active_lineup, key=lambda p: p.stamina)
+            candidates = [p for p in team.bench if p.position == player_out.position and not p.subbed]
+            if not candidates:
+                return
+            player_in = max(candidates, key=lambda p: p.base_attack + p.base_def)
+            team.execute_substitution(player_out, player_in)
+
+        elif action == Actions.CHANGE_FORMATION:
+            formations = list(FORMATION_BUCKETS.keys())
+            current = getattr(team, "formation", "4-4-2")
+            team.formation = formations[(formations.index(current) + 1) % len(formations)]
+            team.update_stats()
+
+        elif action == Actions.HOLD:
+            self.risk_tolerance = max(0.0, self.risk_tolerance - 0.2)
+
+        elif action == Actions.ATTACK:
+            self.risk_tolerance = min(1.0, self.risk_tolerance + 0.2)
+
+    #building prompt in llama style, made "cowboy prompt" write it 
+    def _build_prompt(self):
+        return ("You are an AI football coach controlling one team mid-match.\n"
+            f"Current state:\n{json.dumps(self.state, indent=2)}\n\n"
+            "Choose exactly one action: SUBSTITUTE, CHANGE_FORMATION, HOLD, ATTACK.\n"
+            "Respond with ONLY that single word, nothing else."
+        )
+
+    
+    def _call_model(self , prompt : str) -> str:
+        response = self.model.generate_content(prompt)
+        return response.text
+    
