@@ -3,6 +3,8 @@ import random
 from random import Random
 import numpy as np
 import json
+import os
+from groq import Groq
 
 class Position(Enum):
     FORWARD = "FORWARD"
@@ -361,13 +363,17 @@ class Match():
 
 
 class MatchAi():
-    def __init__(self , model, controlled_team : Team , decision_log : list ,match : Match ,risk_tolerance : float = 0.5 ):
-        self.model = model      #didn't know what to use for a model , currently don't have llama on the laptop 
+    def __init__(self, controlled_team: Team, decision_log: list, match: Match,
+                 risk_tolerance: float = 0.5, model_name: str = "llama-3.3-70b-versatile",
+                 api_key: str = None):
+        self.client = Groq(api_key=api_key or os.environ.get("GROQ_API_KEY"))
+        self.model_name = model_name
         self.controlled_team = controlled_team
         self.decision_log = decision_log
         self.risk_tolerance = risk_tolerance
         self.state = None
         self.match = match
+
     
     def observe_state(self ,match : Match) :
         home = True if self.controlled_team == match.home_team else False
@@ -437,6 +443,19 @@ class MatchAi():
         )
 
     
-    def _call_model(self , prompt : str) -> str:
-        response = self.model.generate_content(prompt)
-        return response.text
+    def _call_model(self, prompt: str) -> str:
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": "You are a concise football match AI coach. Reply with exactly one word."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=8,
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                # network hiccup / rate limit / bad key -> fail safe to HOLD
+                print(f"Groq call failed: {e}")
+                return "HOLD"
