@@ -12,7 +12,7 @@ class DataCleaner():
         self.clean_col_names()
         self.handle_missing()
         self.handle_outliers()
-        print ("the methods worked")
+        # print ("the  cleaning methods worked")
 
     def drop_duplicates(self):
         self.df = self.df.drop_duplicates()
@@ -59,5 +59,5 @@ class DataCleaner():
         self.numerical_df = self.df.select_dtypes(include='number')
 
     def clean_df(self) :
-        print ("cleaned")
+        # print ("cleaned")
         return self.df

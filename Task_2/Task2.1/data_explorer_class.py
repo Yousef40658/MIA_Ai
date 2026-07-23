@@ -11,7 +11,7 @@ class DataExplorer() :
         try :
             if file_path.endswith('.csv') :
                 self.df = pd.read_csv(file_path ,low_memory= False)
-                print ("CSV file opened correctly")
+                # print ("CSV file opened correctly")
 
             elif file_path.endswith('.xlsx') :
                  self.df = pd.read_excel(file_path , engine='openpyxl' , header= 1 )
