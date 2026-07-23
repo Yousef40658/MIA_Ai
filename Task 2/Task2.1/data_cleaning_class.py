@@ -3,12 +3,16 @@ import numpy as np
 from scipy.stats import zscore
 
 class DataCleaner():
-    def __init__(self , file_path): 
-        pd.set_option('display.max_columns', None)
-        self.df = pd.read_csv(file_path , low_memory= False)
-
+    def __init__(self , df : pd.DataFrame): 
+        self.df = df
         #extract numerical cols
         self.numerical_df = self.df.select_dtypes(include='number')
+
+        self.drop_duplicates()
+        self.clean_col_names()
+        self.handle_missing()
+        self.handle_outliers()
+        print ("the methods worked")
 
     def drop_duplicates(self):
         self.df = self.df.drop_duplicates()
@@ -53,3 +57,7 @@ class DataCleaner():
         self.df = self.df.loc[rows_to_keep]
 
         self.numerical_df = self.df.select_dtypes(include='number')
+
+    def clean_df(self) :
+        print ("cleaned")
+        return self.df
