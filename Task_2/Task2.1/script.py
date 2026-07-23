@@ -4,6 +4,7 @@ import os
 import numpy as np
 from data_explorer_class import DataExplorer
 from data_cleaning_class import DataCleaner
+pd.set_option('display.max_columns' , None)
 #- some of the functions or lines can be squeezed by using kwargs to also improve generality but i thought keeping it task specific would make it easier to implement and readable
 
 class FootballAnalysis():
@@ -70,6 +71,7 @@ class FootballAnalysis():
             self.df_goal_scorers = DataCleaner(self.df_goal_scorers).clean_df()
 
             self.cleaned = True
+            
 
     #renaming the countries using former names.csv, i looked at mapping method using dict(zip), as i read its faster because its factorized 
     #but the data here is date-dependent
@@ -140,34 +142,89 @@ class FootballAnalysis():
     #shootouts
     def drama_analysis(self):
         #merging shootouts and result to get tournaments
-        self.merged = self.df_shootouts.merge(
-             self.df_results,
-             on = ["date" , "home_team" , "away_team"],
-             how = "inner" #uses intersection of keys since results.csv dates are more extended
+        merged = self.df_shootouts.merge(
+            self.df_results,
+            on = ["date" , "home_team" , "away_team"],
+            how = "inner" #uses intersection of keys since results.csv dates are more extended
         )
 
-        self.merged["decade"] = (self.merged["date"].str.split("-").str[0].astype(int) // 10) * 10
+        merged["decade"] = (merged["date"].str.split("-").str[0].astype(int) // 10) * 10
         # print(self.merged["decade"])
 
         #since we now have only the rows with shootouts
-        shootouts_per_decade = self.merged["decade"].value_counts() #2010-2020 came with most shootouts
+        shootouts_per_decade = merged["decade"].value_counts() #2010-2020 came with most shootouts
         print ("Shootouts per decade")
         print(shootouts_per_decade , "\n\n")
 
-        shootouts_per_tournament = self.merged["tournament"].value_counts()
+        shootouts_per_tournament = merged["tournament"].value_counts()
         print ("Shootouts per Tournament")
         print(shootouts_per_tournament) #friendly matches had the most shootouts 
-        
 
 
+    def worst_performance(self):
+        #remove all rows except ones with first goal
+        self.first_scorer_df = self.df_goal_scorers.sort_values('minute').drop_duplicates(subset=["date" , "home_team","away_team"], keep="first")
+        # resort by date since that'll make easier foe future usage
+        self.first_scorer_df = self.first_scorer_df.sort_values('date')
+
+        #dropping uncessary cols before merging
+        self.first_scorer_df = self.first_scorer_df.rename(columns={"team": "first_scorer"}).drop(columns=["scorer", "penalty"])  
+        # self.first_scorer_df.to_csv('output.csv' , index = False)
+
+        #merging with results to get winner 
+        merged = self.first_scorer_df.merge(
+             self.df_results,
+             on = ["date" , "home_team" , "away_team"],
+             how = 'inner'
+        )
+
+        scenarios = [
+            (merged["home_score"] > merged["away_score"]) & (merged["first_scorer"] == merged["home_team"]),
+            (merged["away_score"] > merged["home_score"]) & (merged["first_scorer"] == merged["away_team"])
+        ]
+
+        choices = [True, True]
+        merged["lead_won"] = np.select(scenarios ,  choices , default=False)
+
+        worst_performers =(
+             merged[merged["lead_won"] == False].groupby("first_scorer").size()
+             .sort_values(ascending= False)
+        )
+        print("Worst Performers by number of failures")
+        print (worst_performers) #doesn't make sense that brazil is the worst
+
+        # sorting them by percentage
+        total_first_scores = merged.groupby("first_scorer").size()
+
+        failed_first_scores = (
+            merged[merged["lead_won"] == False]
+            .groupby("first_scorer")
+            .size()
+        )
+
+        worst_performers = (
+            pd.DataFrame({
+                "times_scored_first": total_first_scores,
+                "failed_after_leading": failed_first_scores
+            })
+            .fillna(0)  # teams with 0 failures won't appear in failed_first_scores otherwise
+            .assign(fail_pct=lambda d: (d["failed_after_leading"] / d["times_scored_first"] * 100).round(1))
+            .sort_values("fail_pct", ascending=False)
+            .head(10)
+        )
+        print("Worst Performers by percentages")
+        print(worst_performers)
+                
 
 
 
 def main() :  
-     football_analysis = FootballAnalysis(clean= True)
+    football_analysis = FootballAnalysis(clean= True)
     #  football_analysis.top_10_performers()
     #  football_analysis.top_10_efficiency()
-     football_analysis.drama_analysis()
+    #  football_analysis.drama_analysis()
+    #  football_analysis.exploring_dataframes()
+    football_analysis.worst_performance()
     
 
 main()
