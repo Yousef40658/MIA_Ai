@@ -18,7 +18,6 @@ class FootballAnalysis():
              self.clean_data_frames()
              self.cleaned = True
              
-        
 
     def load_dataframes(self):
             self.former_names_path = self.__building_csv_path("former_names")
@@ -137,11 +136,28 @@ class FootballAnalysis():
 
         print (f"{pts_ranking} \n" )
         print (efficiency_ranking)
-         
 
+    #shootouts
+    def drama_analysis(self):
+        #merging shootouts and result to get tournaments
+        self.merged = self.df_shootouts.merge(
+             self.df_results,
+             on = ["date" , "home_team" , "away_team"],
+             how = "inner" #uses intersection of keys since results.csv dates are more extended
+        )
 
+        self.merged["decade"] = (self.merged["date"].str.split("-").str[0].astype(int) // 10) * 10
+        # print(self.merged["decade"])
 
+        #since we now have only the rows with shootouts
+        shootouts_per_decade = self.merged["decade"].value_counts() #2010-2020 came with most shootouts
+        print ("Shootouts per decade")
+        print(shootouts_per_decade , "\n\n")
 
+        shootouts_per_tournament = self.merged["tournament"].value_counts()
+        print ("Shootouts per Tournament")
+        print(shootouts_per_tournament) #friendly matches had the most shootouts 
+        
 
 
 
@@ -149,8 +165,9 @@ class FootballAnalysis():
 
 def main() :  
      football_analysis = FootballAnalysis(clean= True)
-     football_analysis.top_10_performers()
-     football_analysis.top_10_efficiency()
+    #  football_analysis.top_10_performers()
+    #  football_analysis.top_10_efficiency()
+     football_analysis.drama_analysis()
     
 
 main()
