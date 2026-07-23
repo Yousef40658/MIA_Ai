@@ -65,7 +65,12 @@ def main() :
     df_shootouts    = DataCleaner(df_shootouts).clean_df()
     df_goal_scorers = DataCleaner(df_goal_scorers).clean_df()
 
-    
+    ##Top 10 national teams with most goals 
+    # df_goal_scorers.groupby("team" , as_index= Falsewhat )
+    ranking = (
+        df_goal_scorers["team"].value_counts().reset_index()
+    )
 
+    print (ranking)
 
 main()
