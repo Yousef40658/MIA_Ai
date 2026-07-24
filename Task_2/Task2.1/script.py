@@ -147,7 +147,7 @@ class FootballAnalysis():
             on = ["date" , "home_team" , "away_team"],
             how = "inner" #uses intersection of keys since results.csv dates are more extended
         )
-
+        #split to get the year only
         merged["decade"] = (merged["date"].str.split("-").str[0].astype(int) // 10) * 10
         # print(self.merged["decade"])
 
@@ -214,8 +214,21 @@ class FootballAnalysis():
         )
         print("Worst Performers by percentages")
         print(worst_performers)
-                
 
+
+    def era_comparison(self):
+        era_df = self.df_results
+        era_df["decade"] = (era_df["date"].str.split("-").str[0].astype(int) // 10) * 10
+
+        result = era_df.groupby("decade").apply(lambda decade: pd.Series(
+            {
+                 "goals_per_match" : (decade["home_score"] + decade["away_score"]).mean(),
+                 "draw_rate"       : (decade["home_score"] == decade["away_score"]).mean(),
+                 "avg_margin"      : (decade["home_score"] - decade["away_score"]).abs().mean()
+            }
+        ))
+
+        print(result)
 
 
 def main() :  
@@ -224,7 +237,8 @@ def main() :
     #  football_analysis.top_10_efficiency()
     #  football_analysis.drama_analysis()
     #  football_analysis.exploring_dataframes()
-    football_analysis.worst_performance()
+    # football_analysis.worst_performance()
+    # football_analysis.era_comparison()
     
 
 main()
