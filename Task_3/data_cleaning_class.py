@@ -10,7 +10,7 @@ class DataCleaner():
 
         self.drop_duplicates()
         self.clean_col_names()
-        self.handle_missing()
+        # self.handle_missing()
         # self.handle_outliers()
         # print ("the  cleaning methods worked")
 
