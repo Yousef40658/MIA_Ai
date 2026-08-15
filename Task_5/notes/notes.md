@@ -44,6 +44,41 @@ as you increase the n of bits representing the signal you could describe numbers
 - Standard FFT assumes stationary , and fails for a non-stationary signal so STFT is used instead 
 
 ![alt text](image-4.png)
-# 3Blue1Brown FT
 
-     
+# 3Blue1Brown FT
+## Important plots
+1. The normal Amplitude-Time Graph which describes the original signal
+2. The Wrap up in 2D dimension which is just another representation that describes the signal without giving time much importance since it's periodic signal
+it's set such that the distance from the origin equals the amplitude at this point. and points are mapped to their angle using the wrapping up frequency.
+
+the wrapping frequency is the amount of cycles per second . if it's 1 cycle/sec then you'll represent each second with a cycle around the origin 
+4 cycles/second then each second will be represented by 4 cycles.
+
+when both frequencies are equal , the center of mass of the wrapper graph shifts to the right .
+
+- The Almost Fourier Transform ·=
+3. x-coordinate for center of mass - frequency , -to be tested later-.
+with all frequencies the center of mass tends to be slightly shifted yet close to the origin .
+until you reach an integer constant of the fundamental frequency , the center of mass starts shifting to the right . since all values now fall on the right side
+![alt text](image-5.png)
+
+## The Almost Fourier Transform 
+so with each pure sinusoidal you get a mass_coordinates-frequency curve which has a spike at the fundamental frequency and a shape for the wrapper that's "clean"
+
+when you combine two functions of frequencies A , B the same behavior of two spikes at the fundamental frequencies A and B will show again which helps you determine the components of the new function 
+![alt text](image-6.png)
+
+i guess that makes sense because adding them is a linear operation and wrapping them is also a linear mapping so it's a linear operation where super position should apply.
+
+since we're dealing with waves , they can be described by euler hence we can treat the Y axis of the wrapper as an imaginary axis .
+![alt text](image-7.png) , since we know every e power exponential is a circle multiplied by the value of g(t) that gives us the expected wrapper shape
+
+to find the center of mass, we average the whole points by integrating over the fundamental period and dividing by it 
+![alt text](image-8.png)
+
+## The Actual Fourier transform 
+same idea but instead just not dividing by the time , so it's just a scaled version of the previous almost fourier transform .
+so you can say you're multiplying each frequency component with (t2 - t1).
+therefore a signal that exists for more time , receives a higher value but will this effect ruin the "pulse" that happens only at fundamental frequency . it won't since they still cancel out (they cancelled out , their multiplied version will also cancel out)
+
+and the center of mass exists is shifted only to the left 'pulse' only with the fundamental frequencies .
