@@ -96,5 +96,16 @@ i'll do it with BErtscore for the same reasoning mentioned in Task6.1
 
 okay so accuracy is pretty good , done in 9.30 seconds, 435.29 sentences/sec
 BERTScore — Precision: 0.9338, Recall: 0.9289, F1: 0.9285
+i'll try first with multiple LSTMs layer rather than just 1 
+okay that didn't really 
+done in 8.97 seconds, 450.99 sentences/sec
+BERTScore — Precision: 0.9333, Recall: 0.9284, F1: 0.9280
 
-i'll try improving it further using attention 
+let's try with batch = 32
+i'm also carious about increasing the dimensions for images and words since images features were squeezed heavily , will try 512
+okay that didn't also 
+BERTScore — Precision: 0.9309, Recall: 0.9270, F1: 0.9260
+
+
+
+let's try using attention , i'll use AI to help me update relevant parts since i still find difficulty "going through" parts
