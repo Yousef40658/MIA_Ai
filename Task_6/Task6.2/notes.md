@@ -77,3 +77,24 @@ it'll result in more parameters but again i care more about accuracy
 - will use AdamW as the optimizer since it gave better results in and since it provides better generalization 
 - i think i'll try with batch size = 64 then increase it to 128 if i needed more generalization or reduce it if the model generalized well to improve accuracy
 - found something called ReudceLRonPlateau that adjusts the learning rate according to the val loss i'll try it here and if i've time i'll try it on the other task since that was the problem
+
+okay it's the same problem kinda 
+![alt text](image-4.png)
+train loss decreases while val loss plateau
+
+will start by adding attention 
+
+# Phase 6 ~ Model evaluation 
+- [https://www.youtube.com/watch?v=7f540fyEw9w]
+i'll use Beam search for decoding as it achieves higher fluency since it doesn't just pick the word with the highest probability . it tracks a fixed k of most promising sentences at each step . you can say it looks up "the whole way" rather than looking at first step only
+
+in path planning it's A* while greedy is dijkstra
+
+
+![alt text](image-5.png)
+i'll do it with BErtscore for the same reasoning mentioned in Task6.1 
+
+okay so accuracy is pretty good , done in 9.30 seconds, 435.29 sentences/sec
+BERTScore — Precision: 0.9338, Recall: 0.9289, F1: 0.9285
+
+i'll try improving it further using attention 
