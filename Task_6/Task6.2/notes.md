@@ -40,3 +40,40 @@ and i should split by image ID not by caption since the model will get high accu
 ## Model selection 
 leaning towards InceptionV3 since it provides larger size and i've suffered from small size images before . if i figured it needs a lot of time  i'll use ResNet since it's easier to use 
 ![alt text](image-1.png)
+
+## Images features
+- resized images to be 299x299 for inceptionV3
+- applied the tensor transformation
+- extracted features from the image and cached them to use later without having to run all this cycle above again
+
+# Phase 3 
+- will use NLTK library, since i lowercased and removed punctuation and <2 word letters i think i can tokenize by spaces initially then look more into the requirements 
+![alt text](image-2.png)
+
+- i found that a threshold is used for this frequency or occurrence based tables but i don't think i'll use one here . data is already kinda small to have to do such thing 
+i realize that it explodes and that it'll mostly be zeros but with 8k , i'll handle extra time for highest accuracy
+._. okay turned out that it actually can damage the model accuracy which makes sense because if a model sees a word once it can't really learn about it except once so the original not-learnt embeddings remain close to what they were initially .
+i'll add a threshold of 2 
+
+
+![alt text](image-3.png)
+- building the table is done only on the train dataset , since if you get frequencies of words in the test set that's data leakage
+
+- padding is done to make all sequences matching the longest one , to be apply to join them intro matrices and for more efficient parallel processing , it gives the same effect as normal padding in CNNs with the same cons 
+will padd to the 95% percentile of words
+
+# Phase 4 ~ Design
+i'll use LSTM since it's the one searched about 
+after discussing with the claude man wwe narrowed it down to three designs 
+Approach 1: Image as first input token ("inject")
+Approach 2: Image as initial hidden state ("init-inject")
+Approach 3: Merge with word embedding at every timestep
+
+the first approach is the simplest but both 1st and 2nd the image is fed into in the start . and the RNN should stay remembering what the actual image  is during both training and testing to train efficiently (it doesn't have to suffer having to remember what the actual image after like 50 word).
+so i'll use the 3rd approach at which the image is projected at which the image is concatenated to the embedding at every time-stamp to be always remembered by the model
+it'll result in more parameters but again i care more about accuracy 
+
+# Phase 5 ~ Model Training
+- will use AdamW as the optimizer since it gave better results in and since it provides better generalization 
+- i think i'll try with batch size = 64 then increase it to 128 if i needed more generalization or reduce it if the model generalized well to improve accuracy
+- found something called ReudceLRonPlateau that adjusts the learning rate according to the val loss i'll try it here and if i've time i'll try it on the other task since that was the problem
